@@ -21,6 +21,8 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.*;
 import javax.xml.transform.stream.*;
 import javax.xml.transform.dom.DOMSource;
+import com.google.gson.*;
+import org.json.*;
 
 
 
@@ -924,7 +926,7 @@ public class DirMonTest {
 			Account stageAccount = new Account("tkeatingbusiness", "Its@cademic19", "S");
 			String devEnvironment = "D";
 			String stageEnvironment = "S";
-			String filename = "Test.pdf";
+			String filename = "electronicDistribution.pdf";
 			String devTemplateId = "867";
 			String stageTemplateId = "344";
 			//userid = 3826
@@ -932,9 +934,24 @@ public class DirMonTest {
 			results devSessionId = devTest.getTemplateToken(devEnvironment, "tkeatingbusiness", "Its@cademic19");
 			//results stageSessionId = stageTest.getTemplateToken(stageEnvironment, "tkeatingbusiness", "Its@cademic19");
 			
-			System.out.println("In Dev" + "\n" + "This is the response from sendFileNew " + devTest.sendFileNEW(filename, devTemplateId, devAccount, devEnvironment));
+			String response = devTest.sendFileNEW(filename, devTemplateId, devAccount, devEnvironment);
+			System.out.println("In Dev" + "\n" + "This is the response from sendFileNew " + response);
 			//System.out.println("In Stage" + "\n" + "This is the response from sendFileNew" + stageTest.sendFileNEW(filename, stageTemplateId, stageAccount, stageEnvironment));
-			
+			//TypeToken<List<String>> list = new TypeToken<List<String>>() {};
+			response = response.substring(1, response.length()- 1);
+			response = response.replace("\\", "");
+			response = response.replace(" ", "");
+			//response = response.replace("\"", "");
+			System.out.println(response);
+			Gson test = new Gson();
+			//JsonReader reader = new JsonReader(new StringReader(response));
+			//reader.setLenient(true);
+			//HashMap jsonHash = test.fromJson(reader, HashMap.class);
+			//no JsonReader and no leniency 
+			HashMap<String, Integer>[] jsonHash = test.fromJson(response, HashMap[].class);
+			HashMap postageHash = jsonHash[1];
+			System.out.println(postageHash.get("standard"));
+			 
 			//results documentId = test.createDocumentRestAltered("S", "sample.pdf");
 			
 			c2mTemplate devTestTemplate = devTest.getTemplateById(devEnvironment, devTemplateId, devSessionId.message);
