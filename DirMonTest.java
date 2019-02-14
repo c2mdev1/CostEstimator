@@ -820,15 +820,9 @@ public class DirMonTest {
 		}
 	}
 
-	public String costEstimate(String server, c2mTemplate c2m) throws MalformedURLException, IOException { //, c2mTemplate template) { //Should I go ahead and make stageAccount c2mTemplate or ? 
+	public String costEstimate(String server, c2mTemplate c2m, int quantity, String postage) throws MalformedURLException, IOException { //, c2mTemplate template) { //Should I go ahead and make stageAccount c2mTemplate or ? 
 
 		String cost;
-
-		//Testing
-		String quantity = "10";
-		String nonStandardQuantity = "2";
-		String internationalQuantity = "3";
-		String numberOfPages = "1";
 
 		//object to be returned
 		results result = new results();
@@ -842,11 +836,12 @@ public class DirMonTest {
 				+ "paperType" + "=" + c2m.paperType + "&"
 				+ "printOption" + "=" + c2m.printOption + "&"
 				+ "mailClass" + "=" + c2m.mailClass + "&"
-				+ "quantity" + "=" + quantity + "&"
-				+ "nonStandardQuantity" + "=" + nonStandardQuantity + "&"
-				+ "internationalQuantity" + "=" + internationalQuantity + "&"
-				+ "numberOfPages" + "=" + numberOfPages + "&"
+				//+ "quantity" + "=" + quantity + "&"
+				//+ "numberOfPages" + "=" + numberOfPages + "&"
 				+ "paymentType" + "=" + "Invoice";
+		
+		//+ "nonStandardQuantity" + "=" + nonStandardQuantity + "&"
+		//+ "internationalQuantity" + "=" + internationalQuantity + "&"
 
 		//Show me
 		String pattern = "(\\s)";
@@ -916,6 +911,35 @@ public class DirMonTest {
 			}
 	}
 
+	public HashMap cleanSendFileNewResponse(String response) {
+		response = response.substring(1, response.length()- 1);
+		response = response.replace("\\", "");
+		response = response.replace(" ", "");
+		//response = response.replace("\"", "");
+		System.out.println(response);
+		Gson test = new Gson();
+		//JsonReader reader = new JsonReader(new StringReader(response));
+		//reader.setLenient(true);
+		//HashMap jsonHash = test.fromJson(reader, HashMap.class);
+		//no JsonReader and no leniency 
+		HashMap<String, Integer>[] jsonHash = test.fromJson(response, HashMap[].class);
+		HashMap<String, Integer> postageHash = jsonHash[1];
+		System.out.println(postageHash.get("standard"));
+		return postageHash;
+	}
+	
+	/*  public int iterateHashMap(HashMap<String, Integer> postageHash, String server, c2mTemplate c2m ) {
+		System.out.println("For Loop:");
+		int totalCost = 0;
+        for (Map.Entry me : postageHash.entrySet()) {
+          System.out.println("Key: "+ me.getKey() + " & Value: " + me.getValue());
+          int quantity = me.getValue();
+          String standardization = me.getKey();
+          totalCost = totalCost + Integer.parseInt((this.costEstimate(server, c2m, quantity, standardization)));
+        }
+        System.out.println(totalCost);
+        return totalCost;
+	} */
 	public static void main(String[] args){
 
 		DirMonTest devTest = new DirMonTest();
@@ -934,28 +958,14 @@ public class DirMonTest {
 			results devSessionId = devTest.getTemplateToken(devEnvironment, "tkeatingbusiness", "Its@cademic19");
 			//results stageSessionId = stageTest.getTemplateToken(stageEnvironment, "tkeatingbusiness", "Its@cademic19");
 			
+			c2mTemplate devTestTemplate = devTest.getTemplateById(devEnvironment, devTemplateId, devSessionId.message);
+			//c2mTemplate stageTestTemplate = stageTest.getTemplateById(stageEnvironment, stageTemplateId, stageSessionId.message);
+			
 			String response = devTest.sendFileNEW(filename, devTemplateId, devAccount, devEnvironment);
 			System.out.println("In Dev" + "\n" + "This is the response from sendFileNew " + response);
 			//System.out.println("In Stage" + "\n" + "This is the response from sendFileNew" + stageTest.sendFileNEW(filename, stageTemplateId, stageAccount, stageEnvironment));
-			//TypeToken<List<String>> list = new TypeToken<List<String>>() {};
-			response = response.substring(1, response.length()- 1);
-			response = response.replace("\\", "");
-			response = response.replace(" ", "");
-			//response = response.replace("\"", "");
-			System.out.println(response);
-			Gson test = new Gson();
-			//JsonReader reader = new JsonReader(new StringReader(response));
-			//reader.setLenient(true);
-			//HashMap jsonHash = test.fromJson(reader, HashMap.class);
-			//no JsonReader and no leniency 
-			HashMap<String, Integer>[] jsonHash = test.fromJson(response, HashMap[].class);
-			HashMap postageHash = jsonHash[1];
-			System.out.println(postageHash.get("standard"));
-			 
+			//devTest.iterateHashMap(cleanSendFileNewResponse(response), stageEnvironment, devTestTemplate);
 			//results documentId = test.createDocumentRestAltered("S", "sample.pdf");
-			
-			c2mTemplate devTestTemplate = devTest.getTemplateById(devEnvironment, devTemplateId, devSessionId.message);
-			//c2mTemplate stageTestTemplate = stageTest.getTemplateById(stageEnvironment, stageTemplateId, stageSessionId.message);
 			
 			//System.out.println(devTestTemplate.documentClass);
 			//System.out.println(stageTestTemplate.documentClass);
