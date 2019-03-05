@@ -21,9 +21,9 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.*;
 import javax.xml.transform.stream.*;
 import javax.xml.transform.dom.DOMSource;
-import com.google.gson.*;
-import org.json.*;
-
+import com.google.gson.*; //new?
+import org.json.*; //new?
+import java.util.ListIterator; //new
 
 
 import javax.xml.parsers.DocumentBuilder;
@@ -42,6 +42,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.w3c.dom.Document;
@@ -350,7 +351,7 @@ public class DirMonTest {
 		c2mT.documentClass = dDoc.getElementsByTagName("documentClass").item(0).getTextContent();
 		c2mT.envelope = dDoc.getElementsByTagName("envelope").item(0).getTextContent();
 		c2mT.layout = dDoc.getElementsByTagName("layout").item(0).getTextContent();
-		c2mT.excelMapping = dDoc.getElementsByTagName("listId").item(0).getTextContent();
+		//c2mT.excelMapping = dDoc.getElementsByTagName("listId").item(0).getTextContent();
 		c2mT.mailClass = dDoc.getElementsByTagName("mailClass").item(0).getTextContent();
 		c2mT.validatedText = dDoc.getElementsByTagName("pageConstantText").item(0).getTextContent();
 		c2mT.sh = (int) Double.parseDouble(dDoc.getElementsByTagName("pageConstanth").item(0).getTextContent());
@@ -820,7 +821,20 @@ public class DirMonTest {
 		}
 	}
 
-	public String costEstimate(String server, c2mTemplate c2m, int quantity, String postage) throws MalformedURLException, IOException { //, c2mTemplate template) { //Should I go ahead and make stageAccount c2mTemplate or ? 
+	public static String addStandardizationTypeToQueryString(String standardization) {
+		String standardizationString;
+		if (standardization == "nonstandard") {
+			standardizationString = "nonStandardQuantity" + "=" + "1" + "&";
+		}
+		else if (standardization == "international") {
+			standardizationString = "internationalQuantity" + "=" + "1" + "&";
+		}
+		else {
+			standardizationString = "";
+		}
+		return standardizationString;
+	}
+	public String costEstimateAPICall(String server, c2mTemplate c2m, int pageLength, String standardization) throws MalformedURLException, IOException { //, c2mTemplate template) { //Should I go ahead and make stageAccount c2mTemplate or ? 
 
 		String cost;
 
@@ -836,8 +850,9 @@ public class DirMonTest {
 				+ "paperType" + "=" + c2m.paperType + "&"
 				+ "printOption" + "=" + c2m.printOption + "&"
 				+ "mailClass" + "=" + c2m.mailClass + "&"
-				//+ "quantity" + "=" + quantity + "&"
-				//+ "numberOfPages" + "=" + numberOfPages + "&"
+				+ "quantity" + "=" + "1" + "&"
+				+ addStandardizationTypeToQueryString(standardization)
+				+ "numberOfPages" + "=" + pageLength + "&"
 				+ "paymentType" + "=" + "Invoice";
 		
 		//+ "nonStandardQuantity" + "=" + nonStandardQuantity + "&"
@@ -854,7 +869,7 @@ public class DirMonTest {
 		String url = this.get_url_rest(server, false) + "/molpro/costEstimate" + data;
 		//URLEncoder enc = new URLEncoder;
 		//Show Me
-		//System.out.println(url);
+		System.out.println(url);
 
 		//Okay, let's send it 
 		HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
@@ -883,7 +898,8 @@ public class DirMonTest {
 			result.message = sb.toString();
 			//System.out.println(result.message);
 
-			cost = getString(result.message,"//subtotal/text()");
+			cost = getString(result.message,"cost//productionCost//subtotal/text()");
+			System.out.println("This is the cost of the job " + cost);
 			//System.out.println(result); // Should be 200
 			isr.close();
 			is.close();
@@ -911,35 +927,87 @@ public class DirMonTest {
 			}
 	}
 
-	public HashMap cleanSendFileNewResponse(String response) {
+	public ArrayList cleanSendFileNewResponse(String response) {
+		ArrayList<ArrayList> postageList = new ArrayList();
 		response = response.substring(1, response.length()- 1);
 		response = response.replace("\\", "");
 		response = response.replace(" ", "");
-		//response = response.replace("\"", "");
-		System.out.println(response);
+		//refactor this into a separate function
+		System.out.println("This is the response after cleaning: " + response);
 		Gson test = new Gson();
 		//JsonReader reader = new JsonReader(new StringReader(response));
 		//reader.setLenient(true);
 		//HashMap jsonHash = test.fromJson(reader, HashMap.class);
 		//no JsonReader and no leniency 
-		HashMap<String, Integer>[] jsonHash = test.fromJson(response, HashMap[].class);
-		HashMap<String, Integer> postageHash = jsonHash[1];
-		System.out.println(postageHash.get("standard"));
-		return postageHash;
+		//response = gson.toJson('[{"description":"Successfully Processed batchID: 3697","status":"0"},{"standardization": ["standard", "nonstandard"],"pagesList": [[1, 2], [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]],"totalItems": 2}]');
+		HashMap<String, Object>[] jsonHash = test.fromJson(response, HashMap[].class);
+		System.out.println(jsonHash[1].get("totalItems"));
+		double totalItems = (Double) (jsonHash[1].get("totalItems"));
+		System.out.println(totalItems);
+		//ArrayList<Double[]> pagesList = (ArrayList<Double[]>) (jsonHash[1].get("pagesList"));
+		ArrayList<ArrayList<Double>> pagesList = (ArrayList<ArrayList<Double>>) (jsonHash[1].get("pagesList"));
+		System.out.println("Here's the pagesList arrays " + pagesList.get(0) + pagesList.get(1));
+		ArrayList<String> standardization = (ArrayList<String>) jsonHash[1].get("standardization");
+		System.out.println("Here's the standardization arrays " + standardization.get(0) + " " + standardization.get(1));
+		ArrayList<Integer> pageLengthList = pagesListTopageLengthList(pagesList);
+		System.out.println(pageLengthList);
+		postageList.add(standardization);
+		postageList.add(pageLengthList);
+		System.out.println(postageList);
+		return postageList;
 	}
 	
-	/*  public int iterateHashMap(HashMap<String, Integer> postageHash, String server, c2mTemplate c2m ) {
-		System.out.println("For Loop:");
-		int totalCost = 0;
-        for (Map.Entry me : postageHash.entrySet()) {
-          System.out.println("Key: "+ me.getKey() + " & Value: " + me.getValue());
-          int quantity = me.getValue();
-          String standardization = me.getKey();
-          totalCost = totalCost + Integer.parseInt((this.costEstimate(server, c2m, quantity, standardization)));
-        }
-        System.out.println(totalCost);
-        return totalCost;
-	} */
+	public static ArrayList<Integer> pagesListTopageLengthList(ArrayList<ArrayList<Double>> pagesList) {
+		 ArrayList<Integer> pageLengthList = new ArrayList<Integer>(); //INSTANTIATE THIS CORRECTLY 
+		 ListIterator<ArrayList<Double>> iterator = pagesList.listIterator();
+		 while (iterator.hasNext()) {
+			 ArrayList<Double> list1 = iterator.next();
+			 int pageLength = (int) ((list1.get((list1.size() - 1)) - list1.get(0)) + 1); //TURN DOUBLES TO INTS
+			 pageLengthList.add(pageLength);
+		 }
+		 return pageLengthList;
+	}
+	
+	public double iterateList(ArrayList<ArrayList> postageList, String server, c2mTemplate c2m) {
+		//return value initialization
+		double totalCost = 0;
+		try {
+			//taking the two lists out of the arraylist
+			ArrayList<String> standardizationList = postageList.get(0);
+			System.out.println("Here is the standardization list, boss" + standardizationList);
+			ArrayList<Integer> pageLengthList = postageList.get(1);
+			//loop variables
+			int pageLength;
+			String standardization;
+			System.out.println("For Loop:");
+	        for (int i = 0; i < standardizationList.size(); i++ ) {
+	        	System.out.println("I have been through " + i + " times");
+	        	standardization = standardizationList.get(i);
+	        	pageLength = (Integer) pageLengthList.get(i); 
+	          	totalCost = totalCost + Double.parseDouble((this.costEstimateAPICall(server, c2m, pageLength, standardization)));
+	        }
+	        System.out.println("After the loop the totalCost is " + totalCost);
+	        return totalCost;
+		}
+		catch (IOException e) {
+	        System.out.println(e);
+			return totalCost; 
+			} 
+		catch (Exception e) {
+	        System.out.println(e);
+			return totalCost;
+		}
+	}
+	
+	public double valentineTest(String response, String server, c2mTemplate c2m) {
+		double cost = 0;
+		ArrayList response2 = this.cleanSendFileNewResponse(response);
+		cost = this.iterateList(response2, server, c2m);
+		System.out.println(cost);
+		return cost;
+	}
+	
+	
 	public static void main(String[] args){
 
 		DirMonTest devTest = new DirMonTest();
@@ -959,34 +1027,19 @@ public class DirMonTest {
 			//results stageSessionId = stageTest.getTemplateToken(stageEnvironment, "tkeatingbusiness", "Its@cademic19");
 			
 			c2mTemplate devTestTemplate = devTest.getTemplateById(devEnvironment, devTemplateId, devSessionId.message);
+			System.out.println(devTestTemplate.documentClass);
 			//c2mTemplate stageTestTemplate = stageTest.getTemplateById(stageEnvironment, stageTemplateId, stageSessionId.message);
 			
 			String response = devTest.sendFileNEW(filename, devTemplateId, devAccount, devEnvironment);
 			System.out.println("In Dev" + "\n" + "This is the response from sendFileNew " + response);
+			devTest.valentineTest(response, devEnvironment, devTestTemplate);
 			//System.out.println("In Stage" + "\n" + "This is the response from sendFileNew" + stageTest.sendFileNEW(filename, stageTemplateId, stageAccount, stageEnvironment));
-			//devTest.iterateHashMap(cleanSendFileNewResponse(response), stageEnvironment, devTestTemplate);
+			//devTest.iterateList(cleanSendFileNewResponse(response), stageEnvironment, devTestTemplate);
 			//results documentId = test.createDocumentRestAltered("S", "sample.pdf");
 			
 			//System.out.println(devTestTemplate.documentClass);
 			//System.out.println(stageTestTemplate.documentClass);
 			
-			//System.out.println(devTestTemplate.costEstimate("D", devTestTemplate));
-			//System.out.println(test.costEstimate("S", stageTestTemplate));
-			/* int b = 5;
-			int c = 8;
-			int d = 9;
-			int e = 13;
-			String status = "1";
-			String description = "Successful";
-			String jobJSON = "{\"nonstandard\": " + b + ","
-						+ "\"standard\": " + c + "," 
-						+ "\"international\": " + d + ","
-						+ "\"totalItems\": " + e + "}";
-			String statusJSON = "{\"status\": " + status + ","
-						+ "\"description\": " + description + "}";
-			String responseJSON = "[" + statusJSON + "," + jobJSON + "]";
-			Gson gson = new Gson();
-			gson.toJson(responseJSON); */
 
 		} catch(IOException e) {
 			e.printStackTrace();
